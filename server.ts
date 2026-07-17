@@ -7,8 +7,9 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  // JSON parsing middleware
-  app.use(express.json());
+  // JSON parsing middleware with custom limits for social preview base64 images
+  app.use(express.json({ limit: '15mb' }));
+  app.use(express.urlencoded({ limit: '15mb', extended: true }));
 
   // Database files paths
   const DESIGNS_FILE = path.join(process.cwd(), 'designs.json');
@@ -180,18 +181,203 @@ async function startServer() {
     res.json({ success: true });
   });
 
+  // --- Social Preview API Endpoints ---
+  const SOCIAL_PREVIEW_FILE = path.join(process.cwd(), 'social-preview.json');
+
+  function readSocialPreview() {
+    try {
+      if (fs.existsSync(SOCIAL_PREVIEW_FILE)) {
+        return JSON.parse(fs.readFileSync(SOCIAL_PREVIEW_FILE, 'utf8'));
+      }
+    } catch (e) {
+      console.error('Error reading social preview config:', e);
+    }
+    return {
+      imageUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80',
+      width: 1200,
+      height: 630,
+      type: 'image/jpeg',
+      hasCustomImage: false
+    };
+  }
+
+  // GET current social preview settings
+  app.get('/api/social-preview', (req, res) => {
+    res.json(readSocialPreview());
+  });
+
+  // POST upload/save social preview image
+  app.post('/api/social-preview', (req, res) => {
+    const { image, width, height, type } = req.body;
+    if (!image) {
+      return res.status(400).json({ error: 'Missing image data' });
+    }
+
+    try {
+      // Decode base64 image
+      const matches = image.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
+      if (!matches || matches.length !== 3) {
+        return res.status(400).json({ error: 'Invalid image format' });
+      }
+
+      const mimeType = type || matches[1];
+      const base64Data = matches[2];
+      const buffer = Buffer.from(base64Data, 'base64');
+
+      // Determine extension from MIME type
+      let ext = 'jpg';
+      if (mimeType.includes('png')) ext = 'png';
+      else if (mimeType.includes('webp')) ext = 'webp';
+
+      const filename = `og-image.${ext}`;
+      const filePath = path.join(process.cwd(), filename);
+
+      // Delete any existing og-image.* files to avoid confusion
+      ['og-image.jpg', 'og-image.png', 'og-image.webp'].forEach(f => {
+        const p = path.join(process.cwd(), f);
+        if (fs.existsSync(p)) {
+          fs.unlinkSync(p);
+        }
+      });
+
+      // Write the file to root directory
+      fs.writeFileSync(filePath, buffer);
+
+      // Write config
+      const config = {
+        imageUrl: `/og-image.jpg`, // Always served via `/og-image.jpg` endpoint
+        width: width || 1200,
+        height: height || 630,
+        type: mimeType,
+        hasCustomImage: true,
+        filename: filename
+      };
+
+      fs.writeFileSync(SOCIAL_PREVIEW_FILE, JSON.stringify(config, null, 2), 'utf8');
+
+      res.status(200).json(config);
+    } catch (e) {
+      console.error('Error saving social preview image:', e);
+      res.status(500).json({ error: 'Failed to save social preview image' });
+    }
+  });
+
+  // DELETE social preview image
+  app.delete('/api/social-preview', (req, res) => {
+    try {
+      // Delete physical files
+      ['og-image.jpg', 'og-image.png', 'og-image.webp'].forEach(f => {
+        const p = path.join(process.cwd(), f);
+        if (fs.existsSync(p)) {
+          fs.unlinkSync(p);
+        }
+      });
+
+      // Reset config file
+      const defaultConfig = {
+        imageUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80',
+        width: 1200,
+        height: 630,
+        type: 'image/jpeg',
+        hasCustomImage: false
+      };
+
+      fs.writeFileSync(SOCIAL_PREVIEW_FILE, JSON.stringify(defaultConfig, null, 2), 'utf8');
+
+      res.status(200).json(defaultConfig);
+    } catch (e) {
+      console.error('Error resetting social preview image:', e);
+      res.status(500).json({ error: 'Failed to reset social preview image' });
+    }
+  });
+
+  // GET the dynamic social preview image itself
+  app.get('/og-image.jpg', (req, res) => {
+    const config = readSocialPreview();
+    let customImageName = 'og-image.jpg';
+    if (config.hasCustomImage && config.filename) {
+      customImageName = config.filename;
+    }
+    const customPath = path.join(process.cwd(), customImageName);
+    if (config.hasCustomImage && fs.existsSync(customPath)) {
+      res.sendFile(customPath);
+    } else {
+      res.redirect('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80');
+    }
+  });
+
+  // Helper to inject social preview tags dynamically on served HTML
+  function injectSocialMetadata(html: string, req: express.Request) {
+    const config = readSocialPreview();
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+    const host = req.get('host') || 'localhost:3000';
+    
+    // Construct the absolute image URL
+    let absoluteImageUrl = config.imageUrl;
+    if (config.hasCustomImage) {
+      absoluteImageUrl = `${protocol}://${host}/og-image.jpg`;
+    }
+
+    let resHtml = html;
+    resHtml = resHtml.replace(
+      /<meta property="og:image" content="[^"]*"/,
+      `<meta property="og:image" content="${absoluteImageUrl}"`
+    );
+    resHtml = resHtml.replace(
+      /<meta name="twitter:image" content="[^"]*"/,
+      `<meta name="twitter:image" content="${absoluteImageUrl}"`
+    );
+    resHtml = resHtml.replace(
+      /<meta property="og:image:width" content="[^"]*"/,
+      `<meta property="og:image:width" content="${config.width}"`
+    );
+    resHtml = resHtml.replace(
+      /<meta property="og:image:height" content="[^"]*"/,
+      `<meta property="og:image:height" content="${config.height}"`
+    );
+    resHtml = resHtml.replace(
+      /<meta property="og:image:type" content="[^"]*"/,
+      `<meta property="og:image:type" content="${config.type}"`
+    );
+    
+    return resHtml;
+  }
+
   // --- Serve Frontend ---
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
     });
+    
+    // In dev, intercept '/' to inject custom HTML metadata before Vite handles it
+    app.get('/', async (req, res, next) => {
+      try {
+        const templatePath = path.join(process.cwd(), 'index.html');
+        let html = fs.readFileSync(templatePath, 'utf8');
+        html = await vite.transformIndexHtml(req.originalUrl, html);
+        html = injectSocialMetadata(html, req);
+        res.setHeader('Content-Type', 'text/html');
+        res.status(200).send(html);
+      } catch (e) {
+        next(e);
+      }
+    });
+
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
+    app.use(express.static(distPath, { index: false }));
     app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+      const htmlPath = path.join(distPath, 'index.html');
+      if (fs.existsSync(htmlPath)) {
+        let html = fs.readFileSync(htmlPath, 'utf8');
+        html = injectSocialMetadata(html, req);
+        res.setHeader('Content-Type', 'text/html');
+        res.send(html);
+      } else {
+        res.status(404).send('Not Found');
+      }
     });
   }
 

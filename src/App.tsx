@@ -14,7 +14,8 @@ import {
   Moon,
   Trash2,
   Lock,
-  UserCheck
+  UserCheck,
+  Settings
 } from 'lucide-react';
 import { Design, Inquiry, Category, ToastMessage } from './types';
 import { INITIAL_DESIGNS } from './initialData';
@@ -24,6 +25,7 @@ import DesignUploadForm from './components/DesignUploadForm';
 import InquiriesList from './components/InquiriesList';
 import Notification from './components/Notification';
 import ProfileModal from './components/ProfileModal';
+import SocialPreviewManager from './components/SocialPreviewManager';
 import { translations, getCategoryName } from './translations';
 
 const DEFAULT_INQUIRIES: Inquiry[] = [
@@ -71,7 +73,7 @@ export default function App() {
 
   // Navigation states
   const [activeTab, setActiveTab] = useState<'browse' | 'studio'>('browse');
-  const [studioSubTab, setStudioSubTab] = useState<'portfolio' | 'publish' | 'inquiries'>('portfolio');
+  const [studioSubTab, setStudioSubTab] = useState<'portfolio' | 'publish' | 'inquiries' | 'settings'>('portfolio');
 
   // Filter & Search states
   const [searchQuery, setSearchQuery] = useState('');
@@ -104,7 +106,10 @@ export default function App() {
 
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
-  const isAuthorizedToPost = profile.email === 'abdelftahmohamed745@gmail.com' || profile.email === 'mohsenjake99@gmail.com';
+  const isAuthorizedToPost = 
+    profile.email === 'abdelftahmohamed745@gmail.com' || 
+    profile.email === 'mohsenjake99@gmail.com' || 
+    profile.email === 'bkay38757@gmail.com';
 
   const t = translations[lang];
   const isDark = theme === 'dark';
@@ -785,7 +790,7 @@ export default function App() {
                       onView={() => handleInspectDesign(design)}
                       onLike={() => handleLikeDesign(design.id)}
                       isLikedByUser={likedDesigns.includes(design.id)}
-                      onDelete={() => handleDeleteDesign(design.id)}
+                      onDelete={isAuthorizedToPost ? () => handleDeleteDesign(design.id) : undefined}
                     />
                   ))}
                 </div>
@@ -865,23 +870,40 @@ export default function App() {
                   >
                     {t.publishTab}
                   </button>
-                  <button
-                    onClick={() => setStudioSubTab('inquiries')}
-                    className={`pb-3 text-xs font-bold transition-all border-b-2 px-1 relative cursor-pointer ${
-                      studioSubTab === 'inquiries'
-                        ? (isDark ? 'border-white text-white' : 'border-zinc-950 text-zinc-950')
-                        : 'border-transparent text-zinc-500 hover:text-zinc-300 dark:hover:text-zinc-350'
-                    }`}
-                  >
-                    {t.inquiriesTab}
-                    {pendingLeadsCount > 0 && (
-                      <span className={`ml-1.5 font-black text-[9px] px-1.5 py-0.5 rounded-full ${
-                        isDark ? 'bg-white text-zinc-950' : 'bg-zinc-900 text-white'
-                      }`}>
-                        {pendingLeadsCount}
-                      </span>
-                    )}
-                  </button>
+                  {isAuthorizedToPost && (
+                    <>
+                      <button
+                        onClick={() => setStudioSubTab('inquiries')}
+                        className={`pb-3 text-xs font-bold transition-all border-b-2 px-1 relative cursor-pointer ${
+                          studioSubTab === 'inquiries'
+                            ? (isDark ? 'border-white text-white' : 'border-zinc-950 text-zinc-950')
+                            : 'border-transparent text-zinc-500 hover:text-zinc-300 dark:hover:text-zinc-350'
+                        }`}
+                      >
+                        {t.inquiriesTab}
+                        {pendingLeadsCount > 0 && (
+                          <span className={`ml-1.5 font-black text-[9px] px-1.5 py-0.5 rounded-full ${
+                            isDark ? 'bg-white text-zinc-950' : 'bg-zinc-900 text-white'
+                          }`}>
+                            {pendingLeadsCount}
+                          </span>
+                        )}
+                      </button>
+                      <button
+                        onClick={() => setStudioSubTab('settings')}
+                        className={`pb-3 text-xs font-bold transition-all border-b-2 px-1 relative cursor-pointer ${
+                          studioSubTab === 'settings'
+                            ? (isDark ? 'border-white text-white' : 'border-zinc-950 text-zinc-950')
+                            : 'border-transparent text-zinc-500 hover:text-zinc-300 dark:hover:text-zinc-350'
+                        }`}
+                      >
+                        <span className="flex items-center gap-1.5">
+                          <Settings className="w-3.5 h-3.5" />
+                          {lang === 'ar' ? 'إعدادات المسؤول' : 'Admin Settings'}
+                        </span>
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -928,7 +950,7 @@ export default function App() {
                                 onView={() => handleInspectDesign(design)}
                                 onLike={() => handleLikeDesign(design.id)}
                                 isLikedByUser={likedDesigns.includes(design.id)}
-                                onDelete={() => handleDeleteDesign(design.id)}
+                                onDelete={isAuthorizedToPost ? () => handleDeleteDesign(design.id) : undefined}
                               />
                             ))}
                           </div>
@@ -1005,13 +1027,119 @@ export default function App() {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -5 }}
                     >
-                      <InquiriesList
-                        inquiries={inquiries}
-                        onUpdateStatus={handleUpdateInquiryStatus}
-                        onDeleteInquiry={handleDeleteInquiry}
-                        theme={theme}
-                        lang={lang}
-                      />
+                      {!isAuthorizedToPost ? (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className={`border rounded-3xl p-8 sm:p-12 text-center max-w-xl mx-auto space-y-6 ${
+                            isDark ? 'bg-zinc-900/40 border-zinc-800' : 'bg-white border-zinc-200 shadow-sm'
+                          }`}
+                        >
+                          <div className={`w-14 h-14 border rounded-2xl flex items-center justify-center mx-auto ${
+                            isDark ? 'bg-amber-500/10 border-amber-500/20 text-amber-500' : 'bg-amber-500/5 border-amber-500/15 text-amber-600'
+                          }`}>
+                            <Lock className="w-6 h-6" />
+                          </div>
+                          <div className="space-y-2">
+                            <h3 className={`text-lg font-black tracking-tight font-display ${isDark ? 'text-zinc-100' : 'text-zinc-900'}`}>
+                              {isRtl ? 'الوصول مقيد - حساب غير مصرح به' : 'Restricted Access - Unauthorized Account'}
+                            </h3>
+                            <p className={`text-xs leading-relaxed ${isDark ? 'text-zinc-400' : 'text-zinc-650'}`}>
+                              {isRtl 
+                                ? 'صلاحيات استعراض وإدارة الاستفسارات مقتصرة فقط على حسابات المسؤولين المعتمدين.' 
+                                : 'Inquiry tracking capabilities are exclusively reserved for verified administrator accounts.'}
+                            </p>
+                          </div>
+                          <div className={`p-4 rounded-xl border inline-block text-left w-full sm:w-auto ${
+                            isDark ? 'bg-[#030303]/60 border-zinc-850' : 'bg-zinc-50 border-zinc-250'
+                          }`}>
+                            <p className="text-[10px] leading-relaxed text-zinc-500 text-center">
+                              {isRtl 
+                                ? 'يرجى التأكد من ضبط بريدك الإلكتروني في الملف الشخصي على بريد معتمد لمطور أو مسؤول مسجل لدينا.' 
+                                : 'Please ensure your profile is set to a verified administrator or team developer email address.'}
+                            </p>
+                          </div>
+                          <div className="pt-2">
+                            <button
+                              onClick={() => setIsProfileModalOpen(true)}
+                              className={`font-bold text-xs px-6 py-3.5 rounded-full transition-all cursor-pointer shadow-md ${
+                                isDark ? 'bg-white text-zinc-950 hover:bg-zinc-200' : 'bg-zinc-900 text-white hover:bg-zinc-800'
+                              }`}
+                            >
+                              {isRtl ? 'إعداد الملف الشخصي والمحفظة' : 'Configure Profile / Set Email'}
+                            </button>
+                          </div>
+                        </motion.div>
+                      ) : (
+                        <InquiriesList
+                          inquiries={inquiries}
+                          onUpdateStatus={handleUpdateInquiryStatus}
+                          onDeleteInquiry={handleDeleteInquiry}
+                          theme={theme}
+                          lang={lang}
+                        />
+                      )}
+                    </motion.div>
+                  )}
+
+                  {/* subtab: ADMIN SETTINGS */}
+                  {studioSubTab === 'settings' && (
+                    <motion.div
+                      key="settings"
+                      initial={{ opacity: 0, y: 5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -5 }}
+                    >
+                      {!isAuthorizedToPost ? (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className={`border rounded-3xl p-8 sm:p-12 text-center max-w-xl mx-auto space-y-6 ${
+                            isDark ? 'bg-zinc-900/40 border-zinc-800' : 'bg-white border-zinc-200 shadow-sm'
+                          }`}
+                        >
+                          <div className={`w-14 h-14 border rounded-2xl flex items-center justify-center mx-auto ${
+                            isDark ? 'bg-amber-500/10 border-amber-500/20 text-amber-500' : 'bg-amber-500/5 border-amber-500/15 text-amber-600'
+                          }`}>
+                            <Lock className="w-6 h-6" />
+                          </div>
+                          <div className="space-y-2">
+                            <h3 className={`text-lg font-black tracking-tight font-display ${isDark ? 'text-zinc-100' : 'text-zinc-900'}`}>
+                              {isRtl ? 'الوصول مقيد - حساب غير مصرح به' : 'Restricted Access - Unauthorized Account'}
+                            </h3>
+                            <p className={`text-xs leading-relaxed ${isDark ? 'text-zinc-400' : 'text-zinc-650'}`}>
+                              {isRtl 
+                                ? 'صلاحيات تعديل إعدادات الموقع وتحديث صورة المعاينة مقتصرة فقط على حسابات المسؤولين المعتمدين.' 
+                                : 'Site configuration and social preview capabilities are exclusively reserved for verified administrator accounts.'}
+                            </p>
+                          </div>
+                          <div className={`p-4 rounded-xl border inline-block text-left w-full sm:w-auto ${
+                            isDark ? 'bg-[#030303]/60 border-zinc-850' : 'bg-zinc-50 border-zinc-250'
+                          }`}>
+                            <p className="text-[10px] leading-relaxed text-zinc-500 text-center">
+                              {isRtl 
+                                ? 'يرجى التأكد من ضبط بريدك الإلكتروني في الملف الشخصي على بريد معتمد لمطور أو مسؤول مسجل لدينا.' 
+                                : 'Please ensure your profile is set to a verified administrator or team developer email address.'}
+                            </p>
+                          </div>
+                          <div className="pt-2">
+                            <button
+                              onClick={() => setIsProfileModalOpen(true)}
+                              className={`font-bold text-xs px-6 py-3.5 rounded-full transition-all cursor-pointer shadow-md ${
+                                isDark ? 'bg-white text-zinc-950 hover:bg-zinc-200' : 'bg-zinc-900 text-white hover:bg-zinc-800'
+                              }`}
+                            >
+                              {isRtl ? 'إعداد الملف الشخصي والمحفظة' : 'Configure Profile / Set Email'}
+                            </button>
+                          </div>
+                        </motion.div>
+                      ) : (
+                        <SocialPreviewManager
+                          theme={theme}
+                          lang={lang}
+                          onAddToast={addToast}
+                        />
+                      )}
                     </motion.div>
                   )}
 
