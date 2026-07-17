@@ -112,6 +112,9 @@ export default function App() {
 
   // --- Initial Mount & Sync ---
   useEffect(() => {
+    // Set document title
+    document.title = lang === 'ar' ? 'Dark Designer | منصة التصاميم الاحترافية' : 'Dark Designer - Premium Creative Portfolio Hub';
+
     // 1. Designs
     const savedDesigns = localStorage.getItem('marketplace_designs');
     if (savedDesigns) {
@@ -151,6 +154,7 @@ export default function App() {
   useEffect(() => {
     document.documentElement.dir = isRtl ? 'rtl' : 'ltr';
     document.documentElement.lang = lang;
+    document.title = lang === 'ar' ? 'Dark Designer | منصة التصاميم الاحترافية' : 'Dark Designer - Premium Creative Portfolio Hub';
   }, [lang, isRtl]);
 
   useEffect(() => {
