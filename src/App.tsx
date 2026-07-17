@@ -110,36 +110,39 @@ export default function App() {
   const isDark = theme === 'dark';
   const isRtl = lang === 'ar';
 
+  // --- API Fetchers ---
+  const fetchDesigns = async () => {
+    try {
+      const response = await fetch('/api/designs');
+      if (response.ok) {
+        const data = await response.json();
+        setDesigns(data);
+      }
+    } catch (e) {
+      console.error('Error fetching designs:', e);
+    }
+  };
+
+  const fetchInquiries = async () => {
+    try {
+      const response = await fetch('/api/inquiries');
+      if (response.ok) {
+        const data = await response.json();
+        setInquiries(data);
+      }
+    } catch (e) {
+      console.error('Error fetching inquiries:', e);
+    }
+  };
+
   // --- Initial Mount & Sync ---
   useEffect(() => {
     // Set document title
-    document.title = lang === 'ar' ? 'Dark Designer | منصة التصاميم الاحترافية' : 'Dark Designer - Premium Creative Portfolio Hub';
+    document.title = lang === 'ar' ? 'ASTA DESIGN WEB | منصة التصاميم الاحترافية' : 'ASTA DESIGN WEB - Premium Creative Portfolio Hub';
 
-    // 1. Designs
-    const savedDesigns = localStorage.getItem('marketplace_designs');
-    if (savedDesigns) {
-      try {
-        setDesigns(JSON.parse(savedDesigns));
-      } catch (e) {
-        setDesigns(INITIAL_DESIGNS);
-      }
-    } else {
-      setDesigns(INITIAL_DESIGNS);
-      localStorage.setItem('marketplace_designs', JSON.stringify(INITIAL_DESIGNS));
-    }
-
-    // 2. Inquiries
-    const savedInquiries = localStorage.getItem('marketplace_inquiries');
-    if (savedInquiries) {
-      try {
-        setInquiries(JSON.parse(savedInquiries));
-      } catch (e) {
-        setInquiries(DEFAULT_INQUIRIES);
-      }
-    } else {
-      setInquiries(DEFAULT_INQUIRIES);
-      localStorage.setItem('marketplace_inquiries', JSON.stringify(DEFAULT_INQUIRIES));
-    }
+    // Fetch initial data from full-stack server endpoints
+    fetchDesigns();
+    fetchInquiries();
 
     // 3. Likes
     const savedLikes = localStorage.getItem('marketplace_liked');
@@ -154,7 +157,7 @@ export default function App() {
   useEffect(() => {
     document.documentElement.dir = isRtl ? 'rtl' : 'ltr';
     document.documentElement.lang = lang;
-    document.title = lang === 'ar' ? 'Dark Designer | منصة التصاميم الاحترافية' : 'Dark Designer - Premium Creative Portfolio Hub';
+    document.title = lang === 'ar' ? 'ASTA DESIGN WEB | منصة التصاميم الاحترافية' : 'ASTA DESIGN WEB - Premium Creative Portfolio Hub';
   }, [lang, isRtl]);
 
   useEffect(() => {
@@ -165,15 +168,13 @@ export default function App() {
     }
   }, [isDark]);
 
-  // Sync to local storage helper
+  // Local helper for optimistic updates
   const syncDesigns = (updated: Design[]) => {
     setDesigns(updated);
-    localStorage.setItem('marketplace_designs', JSON.stringify(updated));
   };
 
   const syncInquiries = (updated: Inquiry[]) => {
     setInquiries(updated);
-    localStorage.setItem('marketplace_inquiries', JSON.stringify(updated));
   };
 
   // --- Theme / Language Switch Toggles ---
@@ -195,7 +196,7 @@ export default function App() {
     if (nextLang === 'ar') {
       addToast('success', 'تم تغيير اللغة', 'الموقع يدعم اللغة العربية الآن بشكل كامل.');
     } else {
-      addToast('success', 'Language Switched', 'Dark Designer is now displayed in English.');
+      addToast('success', 'Language Switched', 'ASTA DESIGN WEB is now displayed in English.');
     }
   };
 
@@ -212,7 +213,7 @@ export default function App() {
   // --- Operations ---
   
   // Toggle design liking
-  const handleLikeDesign = (designId: string) => {
+  const handleLikeDesign = async (designId: string) => {
     const isLiked = likedDesigns.includes(designId);
     let updatedLikes = [...likedDesigns];
     
@@ -235,7 +236,7 @@ export default function App() {
     setLikedDesigns(updatedLikes);
     localStorage.setItem('marketplace_liked', JSON.stringify(updatedLikes));
 
-    // Update design's likes count
+    // Update design's likes count locally first (optimistic UI)
     const updatedDesigns = designs.map((d) => {
       if (d.id === designId) {
         return {
@@ -251,10 +252,23 @@ export default function App() {
     if (selectedDesign && selectedDesign.id === designId) {
       setSelectedDesign(updatedDesigns.find((d) => d.id === designId) || null);
     }
+
+    try {
+      const response = await fetch(`/api/designs/${designId}/like`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isLiked: !isLiked })
+      });
+      if (response.ok) {
+        await fetchDesigns();
+      }
+    } catch (e) {
+      console.error('Error saving like on server:', e);
+    }
   };
 
   // Increment view counts on design inspection
-  const handleInspectDesign = (design: Design) => {
+  const handleInspectDesign = async (design: Design) => {
     const updatedDesigns = designs.map((d) => {
       if (d.id === design.id) {
         return { ...d, views: d.views + 1 };
@@ -263,10 +277,16 @@ export default function App() {
     });
     syncDesigns(updatedDesigns);
     setSelectedDesign(updatedDesigns.find((d) => d.id === design.id) || null);
+
+    try {
+      await fetch(`/api/designs/${design.id}/view`, { method: 'PUT' });
+    } catch (e) {
+      console.error('Error incrementing views on server:', e);
+    }
   };
 
   // Create custom lead / inquiry
-  const handleAddInquiry = (inquiryData: Omit<Inquiry, 'id' | 'createdAt' | 'status'>) => {
+  const handleAddInquiry = async (inquiryData: Omit<Inquiry, 'id' | 'createdAt' | 'status'>) => {
     const newInquiry: Inquiry = {
       ...inquiryData,
       id: `inquiry-${Math.random().toString(36).substr(2, 9)}`,
@@ -276,6 +296,20 @@ export default function App() {
 
     const updated = [newInquiry, ...inquiries];
     syncInquiries(updated);
+
+    try {
+      const response = await fetch('/api/inquiries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newInquiry)
+      });
+      if (response.ok) {
+        await fetchInquiries();
+      }
+    } catch (e) {
+      console.error('Error creating inquiry on server:', e);
+    }
+
     if (lang === 'ar') {
       addToast(
         'success',
@@ -292,7 +326,7 @@ export default function App() {
   };
 
   // Update Inquiry communication status
-  const handleUpdateInquiryStatus = (id: string, status: Inquiry['status']) => {
+  const handleUpdateInquiryStatus = async (id: string, status: Inquiry['status']) => {
     const updated = inquiries.map((inq) => {
       if (inq.id === id) {
         return { ...inq, status };
@@ -300,12 +334,29 @@ export default function App() {
       return inq;
     });
     syncInquiries(updated);
+
+    try {
+      await fetch(`/api/inquiries/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      });
+    } catch (e) {
+      console.error('Error updating inquiry status on server:', e);
+    }
   };
 
   // Delete/Archive inquiry
-  const handleDeleteInquiry = (id: string) => {
+  const handleDeleteInquiry = async (id: string) => {
     const updated = inquiries.filter((inq) => inq.id !== id);
     syncInquiries(updated);
+
+    try {
+      await fetch(`/api/inquiries/${id}`, { method: 'DELETE' });
+    } catch (e) {
+      console.error('Error deleting inquiry on server:', e);
+    }
+
     if (lang === 'ar') {
       addToast('info', 'تم أرشفة الاستفسار', 'تم مسح طلب العميل من قائمة الاستفسارات النشطة.');
     } else {
@@ -314,7 +365,7 @@ export default function App() {
   };
 
   // Create design publication
-  const handlePublishDesign = (
+  const handlePublishDesign = async (
     designData: Omit<
       Design,
       'id' | 'createdAt' | 'likes' | 'views' | 'designerName' | 'designerAvatar'
@@ -332,6 +383,20 @@ export default function App() {
 
     const updated = [newDesign, ...designs];
     syncDesigns(updated);
+
+    try {
+      const response = await fetch('/api/designs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newDesign)
+      });
+      if (response.ok) {
+        await fetchDesigns();
+      }
+    } catch (e) {
+      console.error('Error publishing design on server:', e);
+    }
+
     if (lang === 'ar') {
       addToast('success', 'تم النشر بنجاح!', `أصبح مشروعك "${designData.title}" متاحاً الآن في المعرض العام!`);
     } else {
@@ -343,10 +408,22 @@ export default function App() {
   };
 
   // Delete own design showcase
-  const handleDeleteDesign = (designId: string) => {
+  const handleDeleteDesign = async (designId: string) => {
     const updated = designs.filter((d) => d.id !== designId);
     syncDesigns(updated);
     setSelectedDesign(null);
+
+    try {
+      const response = await fetch(`/api/designs/${designId}`, {
+        method: 'DELETE'
+      });
+      if (response.ok) {
+        await fetchDesigns();
+      }
+    } catch (e) {
+      console.error('Error deleting design on server:', e);
+    }
+
     if (lang === 'ar') {
       addToast('info', 'تم حذف العمل', 'تم إزالة مشروعك ومصنفك الفني من المعرض العام للموقع.');
     } else {

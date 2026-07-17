@@ -55,9 +55,9 @@ export default function DesignDetailsModal({
   useEffect(() => {
     if (formType === 'inquiry') {
       if (lang === 'ar') {
-        setMessage(`مرحباً ${design.designerName === 'You (Studio Owner)' || design.designerName.includes('You') ? 'أنت (مالك الاستوديو)' : design.designerName}،\n\nأعجبني عملك "${design.title}" المعروض في معرض "المصمم المظلم" وأود العمل معك في مشروع مخصص بناءً على هذا الأسلوب الجمالي!`);
+        setMessage(`مرحباً ${design.designerName === 'You (Studio Owner)' || design.designerName.includes('You') ? 'أنت (مالك الاستوديو)' : design.designerName}،\n\nأعجبني عملك "${design.title}" المعروض في معرض "ASTA DESIGN WEB" وأود العمل معك في مشروع مخصص بناءً على هذا الأسلوب الجمالي!`);
       } else {
-        setMessage(`Hi ${design.designerName},\n\nI love your "${design.title}" work on DARK DESIGNER and would love to work with you on a custom project based on this style!`);
+        setMessage(`Hi ${design.designerName},\n\nI love your "${design.title}" work on ASTA DESIGN WEB and would love to work with you on a custom project based on this style!`);
       }
     } else if (formType === 'purchase') {
       if (lang === 'ar') {

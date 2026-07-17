@@ -1,0 +1,23 @@
+[
+  {
+    "id": "design-3",
+    "title": "Abstract Holographic Shapes",
+    "description": "A set of high-resolution 3D holographic shapes for dark background visuals. Ideal for landing page banners, header graphics, or digital product presentations. Rendered in ultra-high fidelity.",
+    "category": "3D Art",
+    "tags": [
+      "3D",
+      "Holographic",
+      "Abstract",
+      "Web3"
+    ],
+    "imageUrl": "https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?auto=format&fit=crop&w=1200&q=80",
+    "price": 89,
+    "allowCustomQuotes": false,
+    "designerName": "ASTA DESIGN Studio",
+    "designerAvatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80",
+    "createdAt": "2026-07-17T02:15:00.000Z",
+    "likes": 15,
+    "views": 94,
+    "featured": false
+  }
+]
