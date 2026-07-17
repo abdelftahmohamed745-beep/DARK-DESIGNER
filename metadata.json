@@ -1,0 +1,6 @@
+{
+  "name": "DARK DESIGNER",
+  "description": "An ultra-premium dark-themed design marketplace and creative portfolio hub where elite artists publish high-quality visual designs, licenses, and custom commissions.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
